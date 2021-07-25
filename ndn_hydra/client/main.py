@@ -104,6 +104,7 @@ def parse_hydra_cmd_opts() -> Namespace:
 
     # Getting all Arguments
     vars = parser.parse_args()
+    print(vars)
 
     # Configure Arguments
     if vars.function == "insert":
@@ -134,13 +135,13 @@ async def run_hydra_client(app: NDNApp, args: Namespace) -> None:
   repo_prefix = Name.from_str(args.repo)
   client_prefix = Name.from_str("/client")
   filename = None
-  desired_copies = args.copies
   client = HydraClient(app, client_prefix, repo_prefix)
 
   if args.function != "query":
-      filename = Name.from_str(args.filename)
+    filename = Name.from_str(args.filename)
 
   if args.function == "insert":
+    desired_copies = args.copies
     await client.insert(filename, desired_copies, args.path)
     print("Client finished Insert Command!")
     await asyncio.sleep(60)
