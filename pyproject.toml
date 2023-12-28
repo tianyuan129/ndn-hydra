@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "ndn-hydra"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+packages = [{include = "ndn_hydra"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+python-ndn = "^0.4.1"
+ndn-storage = "^0.2.3"
+ndn-svs = { git = "https://github.com/justincpresley/ndn-python-svs.git" }
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

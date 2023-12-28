@@ -9,30 +9,40 @@
 #  @Pip-Library:   https://pypi.org/project/ndn-hydra
 # -------------------------------------------------------------
 
-import logging
-import numpy as np
+import shutil
+# import numpy as np
 from ndn.encoding import *
-from os import shutil
 
+
+# class FavorParameterTypes:
+#     RTT = 100
+#     NETWORK_COST_PER_GB = 0.01
+#     STORAGE_COST_PER_GB = 0.014
+#     NUM_USERS = 100
+#     BANDWIDTH = 25000 #Mbps
+#     NETWORK_COST = NETWORK_COST_PER_GB * (BANDWIDTH/(1000*8)) #0.01 USD/GB  
+#     RW_SPEED = 6.25
+#     TOTAL_STORAGE, USED_STORAGE, REMAINING_STORAGE = shutil.disk_usage(__file__)
+#     STORAGE_COST = REMAINING_STORAGE * STORAGE_COST_PER_GB
 
 class FavorParameterTypes:
-#    RTT = 100
-    NETWORK_COST_PER_GB = 0.01
-    STOARGE_COST_PER_GB = 0.014
-    NUM_USERS = 100
-    BANDWIDTH = 25000 #Mbps
-    NETWORK_COST = COST_PER_GB * (BANDWIDTH/(1000*8)) #0.01 USD/GB  
-    RW_SPEED = 6.25
-    TOTAL_STORAGE, USED_STORAGE, REMAINING_STORAGE = shutil.disk_usage(__file__)
-    STORAGE_COST = REMAINING_STORAGE * STORAGE_COST_PER_GB
+    RTT = 501
+    NUM_USERS = 502
+    BANDWIDTH = 503
+    NETWORK_COST = 504
+    STORAGE_COST = 505
+    REMAINING_STORAGE = 506
+    RW_SPEED = 507
+
 
 class FavorParameters(TlvModel):
-    rtt = BytesField(FavorParameterTypes.RTT)
-    num_users = BytesField(FavorParameterTypes.NUM_USERS)
-    bandwidth = BytesField(FavorParameterTypes.BANDWIDTH)
-    network_cost = BytesField(FavorParameterTypes.NETWORK_COST)
-    storage_cost = BytesField(FavorParameterTypes.STORAGE_COST)
-    remaining_storage = BytesField(FavorParameterTypes.REMAINING_STORAGE)
+    rtt = UintField(FavorParameterTypes.RTT)
+    num_users = UintField(FavorParameterTypes.NUM_USERS)
+    bandwidth = UintField(FavorParameterTypes.BANDWIDTH)
+    network_cost = UintField(FavorParameterTypes.NETWORK_COST)
+    storage_cost = UintField(FavorParameterTypes.STORAGE_COST)
+    remaining_storage = UintField(FavorParameterTypes.REMAINING_STORAGE)
+    rw_speed = UintField(FavorParameterTypes.RW_SPEED)
     
 
 class FavorCalculator:
@@ -45,7 +55,9 @@ class FavorCalculator:
             # print(param, ':', val)
         #    favor += int(val)
         # print('favor:', favor)
-        favor = .3*REMAINING_STORAGE + .3*BANDWIDTH + .4*RW_SPEED + 0.0*NUM_USERS + 0.0*NETWORK_COST + 0.0*STORAGE_COST
+        # favor = .3* REMAINING_STORAGE + .3*BANDWIDTH + .4*RW_SPEED + 0.0*NUM_USERS + 0.0*NETWORK_COST + 0.0*STORAGE_COST
+        rw_speed = 6.25 if favor_parameters.rw_speed is None else favor_parameters.rw_speed
+        favor = .3 * favor_parameters.remaining_storage + .3 * favor_parameters.bandwidth + .4 * rw_speed
         return favor
 
 

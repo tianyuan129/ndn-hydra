@@ -102,6 +102,7 @@ class HydraNodeThread(Thread):
         self.config = config
 
     def run(self) -> None:
+        print(self.config)
         if len(os.path.dirname(self.config['logging_path'])) > 0 and not os.path.exists(os.path.dirname(self.config['logging_path'])):
             try:
                 os.makedirs(os.path.dirname(self.config['logging_path']))
@@ -111,13 +112,13 @@ class HydraNodeThread(Thread):
                 pass
 
         # logging
-        SVSyncLogger.config(False, None, logging.INFO)
-        logging.basicConfig(level=logging.INFO,
+        SVSyncLogger.config(False, None, logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG,
                             format='%(created)f  %(levelname)-8s  %(message)s',
                             filename=self.config['logging_path'],
                             filemode='w')
         console = logging.StreamHandler()
-        console.setLevel(logging.INFO)
+        console.setLevel(logging.DEBUG)
         logging.getLogger().addHandler(console)
 
         # loop + NDN

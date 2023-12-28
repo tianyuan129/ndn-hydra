@@ -27,7 +27,7 @@ from ndn_hydra.repo.utils.garbage_collector import collect_db_garbage
 from ndn_hydra.repo.utils.concurrent_fetcher import concurrent_fetcher
 
 class MainLoop:
-    def __init__(self, app:NDNApp, config:Dict, global_view:GlobalView, data_storage:Storage, svs_storage:Storage, file_fetcher:FileFetcher):
+    def __init__(self, app: NDNApp, config: Dict, global_view: GlobalView, data_storage: Storage, svs_storage: Storage, file_fetcher: FileFetcher):
         self.app = app
         self.config = config
         self.global_view = global_view
@@ -72,19 +72,19 @@ class MainLoop:
                     continue
                 message = Message.specify(i.nid, i.lowSeqno, message_bytes)
                 self.tracker.reset(i.nid)
-                aio.ensure_future(message.apply(self.global_view, self.fetch_file, self.svs, self.config))
+                aio.ensure_future(message.apply(self.global_view))
                 i.lowSeqno = i.lowSeqno + 1
 
     def send_heartbeat(self):
         heartbeat_message = HeartbeatMessageTlv()
-        heartbeat_message.node_name = self.config['node_name'].encode()
+        heartbeat_message.node_name = Name.to_bytes(self.config['node_name'])
         heartbeat_message.favor_parameters = FavorParameters()
-        heartbeat_message.favor_parameters.rtt = str(self.config['rtt']).encode()
-        heartbeat_message.favor_parameters.num_users = str(self.config['num_users']).encode()
-        heartbeat_message.favor_parameters.bandwidth = str(self.config['bandwidth']).encode()
-        heartbeat_message.favor_parameters.network_cost = str(self.config['network_cost']).encode()
-        heartbeat_message.favor_parameters.storage_cost = str(self.config['storage_cost']).encode()
-        heartbeat_message.favor_parameters.remaining_storage = str(self.config['remaining_storage']).encode()
+        heartbeat_message.favor_parameters.rtt = self.config['rtt']
+        heartbeat_message.favor_parameters.num_users = self.config['num_users']
+        heartbeat_message.favor_parameters.bandwidth = self.config['bandwidth']
+        heartbeat_message.favor_parameters.network_cost = self.config['network_cost']
+        heartbeat_message.favor_parameters.storage_cost = self.config['storage_cost']
+        heartbeat_message.favor_parameters.remaining_storage = self.config['remaining_storage']
         message = Message()
         message.type = MessageTypes.HEARTBEAT
         message.value = heartbeat_message.encode()

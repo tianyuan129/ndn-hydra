@@ -31,7 +31,7 @@ class InsertCommandHandle(ProtocolHandle):
     in the database.
     """
     def __init__(self, app: NDNApp, data_storage: Storage, pb: PubSub, config: dict,
-                main_loop: MainLoop, global_view: GlobalView):
+                 main_loop: MainLoop, global_view: GlobalView):
         """
         :param app: NDNApp.
         :param data_storage: Storage.
@@ -89,7 +89,7 @@ class InsertCommandHandle(ProtocolHandle):
         nodes = self.global_view.get_nodes()
         desired_copies = self.replication_degree
         if len(nodes) < (desired_copies * 2):
-            self.logger.warning("not enough nodes") # TODO: notify the client?
+            self.logger.warning(f"not enough nodes, currently {len(nodes)}") # TODO: notify the client?
             return
 
         # select sessions
