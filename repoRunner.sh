@@ -1,0 +1,1 @@
+poetry run python3 examples/repo.py  -rp /hydra/ -n /hydra/node/$1 -a ~/dev/ndn-hydra/examples/secParams/anchor.ndncert -l ~/dev/ndn-hydra/examples/secParams/model.lvs -b ~/dev/ndn-hydra/examples/secParams/RepoNodeCerts-$1.db -t ~/dev/ndn-hydra/examples/secParams/RepoNodeSecurityPrivKeys

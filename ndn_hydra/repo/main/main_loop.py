@@ -10,24 +10,31 @@
 # -------------------------------------------------------------
 
 import asyncio as aio
-import logging
+import logging, base64
 import secrets
 import time
 import random
 from typing import Dict, List
 from ndn.app import NDNApp
 from ndn.encoding import Name, Component
+import ndn.app_support.light_versec.checker as chk
+from ndn.app_support.light_versec import LvsModel
+import ndn.app_support.security_v2 as sv2
+from ndn.security.tpm import TpmFile
 from ndn.types import InterestNack, InterestTimeout
-from ndn.svs import SVSync
+from svs import SVSync
+from svs.security import SecurityOptions, SigningInfo, ValidatingInfo
 from ndn.storage import Storage, SqliteStorage
 from ndn_hydra.repo.modules import *
 from ndn_hydra.repo.group_messages import *
 from ndn_hydra.repo.modules.file_fetcher import FileFetcher
 from ndn_hydra.repo.utils.garbage_collector import collect_db_garbage
 from ndn_hydra.repo.utils.concurrent_fetcher import concurrent_fetcher
+from envelope.impl import EnvelopeImpl
+from envelope.impl.storage import Sqlite3Box, ExpressToNetworkBox
 
 class MainLoop:
-    def __init__(self, app: NDNApp, config: Dict, global_view: GlobalView, data_storage: Storage, svs_storage: Storage, file_fetcher: FileFetcher):
+    def __init__(self, app: NDNApp, config: Dict, global_view: GlobalView, data_storage: Storage, svs_storage: Storage, file_fetcher: FileFetcher, using_envelope = False):
         self.app = app
         self.config = config
         self.global_view = global_view
@@ -40,9 +47,40 @@ class MainLoop:
         self.node_name = self.config['node_name']
         self.tracker = HeartbeatTracker(self.node_name, global_view, config['loop_period'], config['heartbeat_rate'], config['tracker_rate'], config['beats_to_fail'], config['beats_to_renew'])
         self.last_garbage_collect_t = time.time() # time in seconds
-
+        self.using_envelope = using_envelope
     async def start(self):
-        self.svs = SVSync(self.app, Name.normalize(self.config['repo_prefix'] + "/group"), Name.normalize(self.node_name), self.svs_missing_callback, storage=self.svs_storage)
+        async def load_envelope(anchor_path, model_path, db_path, tpm_path):
+            express = ExpressToNetworkBox(self.app)
+            # move
+            async def moveTo(cert_bytes):
+                cert_name = sv2.parse_certificate(cert_bytes).name
+                express.put(cert_name, cert_bytes)
+                return False
+            local_box = Sqlite3Box(db_path)
+            await local_box.search(Name.from_str("/"), moveTo)
+            security_manager = EnvelopeImpl(self.app, TpmFile(tpm_path), local_box, express)
+            with open(anchor_path, "r") as af:
+                anchor_bytes = base64.b64decode(af.read())
+            with open(model_path, "r") as lf:
+                model_bytes = base64.b64decode(lf.read())
+            chk.DEFAULT_USER_FNS.update(
+                {'$eq_any': lambda c, args: any(x == c for x in args)}
+            )
+            await security_manager.set(anchor_bytes, LvsModel.parse(model_bytes), chk.DEFAULT_USER_FNS)
+            return security_manager
+        if self.using_envelope:
+            self.envelope = await load_envelope(self.config["trust_anchor"], self.config["lvs_model"], self.config["box_sqlite3_path"], self.config["tpm"])
+            self.sec_ops = SecurityOptions(SigningInfo(SignatureType.DIGEST_SHA256),
+                                        ValidatingInfo(ValidatingInfo.get_validator(SignatureType.DIGEST_SHA256)),
+                                        SigningInfo(SignatureType.DIGEST_SHA256), [],
+                                        self.envelope)
+        else:
+            self.sec_ops = SecurityOptions(SigningInfo(SignatureType.DIGEST_SHA256),
+                                        ValidatingInfo(ValidatingInfo.get_validator(SignatureType.DIGEST_SHA256)),
+                                        SigningInfo(SignatureType.DIGEST_SHA256), [],
+                                        None)
+        self.svs = SVSync(self.app, Name.normalize(self.config['repo_prefix'] + "/group"), Name.normalize(self.node_name), self.svs_missing_callback, storage=self.svs_storage,
+                          securityOptions=self.sec_ops)
         await aio.sleep(5)
         while True:
             await aio.sleep(self.config['loop_period'] / 1000.0)
@@ -89,7 +127,8 @@ class MainLoop:
         message.type = MessageTypes.HEARTBEAT
         message.value = heartbeat_message.encode()
         try:
-            next_state_vector = self.svs.getCore().getStateTable().getSeqno(Name.to_str(Name.from_str(self.config['node_name']))) + 1
+            # next_state_vector = self.svs.getCore().getStateTable().getSeqno(Name.to_str(Name.from_str(self.config['node_name']))) + 1
+            next_state_vector = self.svs.getCore().getSeqno() + 1
         except TypeError:
             next_state_vector = 0
         # TODO: Calculate a node's self favor

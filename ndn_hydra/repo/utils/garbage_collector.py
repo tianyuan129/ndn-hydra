@@ -1,6 +1,6 @@
 import time
 import logging
-from ndn.svs import SVSync
+from svs import SVSync
 from ndn_hydra.repo.modules.global_view import GlobalView
 from ndn_hydra.repo.group_messages.remove import RemoveMessageTlv
 from ndn_hydra.repo.group_messages.message import Message, MessageTypes

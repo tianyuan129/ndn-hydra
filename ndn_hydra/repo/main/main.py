@@ -11,20 +11,25 @@
 
 from argparse import ArgumentParser
 import asyncio as aio
-import random
-import logging
+import random, logging, base64
 from typing import Dict
 from threading import Thread
 import pkg_resources
 from ndn.app import NDNApp
 from ndn.encoding import Name
+from ndn.app_support.light_versec.binary import LvsModel
+from ndn.security import TpmFile
+import ndn.app_support.light_versec.checker as chk
 from ndn.utils import gen_nonce
 from ndn.storage import SqliteStorage
 import sys, os
-from ndn.svs import SVSyncLogger
+from svs import SVSyncLogger
 from ndn_hydra.repo import *
 from ndn_hydra.repo.modules.file_fetcher import FileFetcher
 
+from envelope.envelope import EnvelopeBase
+from envelope.impl.storage import Sqlite3Box
+from envelope.impl import EnvelopeImpl
 
 def process_cmd_opts():
     def interpret_version() -> None:
@@ -37,7 +42,7 @@ def process_cmd_opts():
         set = True if "-h" in sys.argv else False
         if set:
             if (len(sys.argv)-1 < 2):
-                print("usage: ndn-hydra-repo [-h] [-v] -rp REPO_PREFIX -n NODE_NAME")
+                print("usage: ndn-hydra-repo [-h] [-v] -rp REPO_PREFIX -n NODE_NAME -a TRUST_ANCHOR -l LVS_MODEL -b SQLITE3_BOX -t TPM")
                 print("    ndn-hydra-repo: hosting a node for hydra, the NDN distributed repo.")
                 print("    ('python3 ./examples/repo.py' instead of 'ndn-hydra-repo' if from source.)")
                 print("")
@@ -48,6 +53,10 @@ def process_cmd_opts():
                 print("* required args:")
                 print("  -rp, --repoprefix REPO_PREFIX    |   repo (group) prefix. Example: \"/hydra\"")
                 print("  -n, --nodename NODE_NAME         |   node name. Example: \"node01\"")
+                print("  -a, --anchor TRUST_ANCHOR        |   trust anchor file encoded in base64. Example: \"hydra.ndncert\"")
+                print("  -l, --lvsmodel LVS_MODEL         |   lvs model file encoded in base64. Example: \"hydra.lvs\"")
+                print("  -b, --box SQLITE3_BOX            |   sqlite3 box db path. Example: \"RepoNodeCerts.db\"")
+                print("  -t, --tpm TPM                    |   ndn-cxx style tpm path. Example: \"~/.ndn/ndn-sec-keys\"")
                 print("")
                 print("Thank you for using hydra.")
             sys.exit(0)
@@ -65,6 +74,10 @@ def process_cmd_opts():
         parser.add_argument("-v","--version",action="store_true",dest="version",default=False,required=False)
         parser.add_argument("-rp","--repoprefix",action="store",dest="repo_prefix",required=True)
         parser.add_argument("-n","--nodename",action="store",dest="node_name",required=True)
+        parser.add_argument("-a","--anchor",action="store",dest="trust_anchor",required=True)
+        parser.add_argument("-l","--lvsmodel",action="store",dest="lvs_model",required=True)
+        parser.add_argument("-b","--box",action="store",dest="box_sqlite3_path",required=True)
+        parser.add_argument("-t","--tpm",action="store",dest="tpm",required=True)
         # Interpret Informational Arguments
         interpret_version()
         interpret_help()
@@ -75,6 +88,10 @@ def process_cmd_opts():
         args = {}
         args["repo_prefix"] = process_name(vars.repo_prefix)
         args["node_name"] = process_name(vars.node_name)
+        args["trust_anchor"] = process_name(vars.trust_anchor)
+        args["lvs_model"] = process_name(vars.lvs_model)
+        args["box_sqlite3_path"] = process_name(vars.box_sqlite3_path)
+        args["tpm"] = process_name(vars.tpm)
         workpath = "{home}/.ndn/repo{repo_prefix}/{node_name}".format(
             home=os.path.expanduser("~"),
             repo_prefix=args["repo_prefix"],
@@ -136,7 +153,7 @@ class HydraNodeThread(Thread):
         file_fetcher = FileFetcher(app, global_view, data_storage, self.config)
 
         # main_loop (svs)
-        main_loop = MainLoop(app, self.config, global_view, data_storage, svs_storage, file_fetcher)
+        main_loop = MainLoop(app, self.config, global_view, data_storage, svs_storage, file_fetcher, using_envelope = True)
 
         # handles (reads, commands & queries)
         read_handle = ReadHandle(app, data_storage, global_view, self.config)

@@ -9,8 +9,8 @@ packages = [{include = "ndn_hydra"}]
 python = "^3.10"
 python-ndn = "^0.4.1"
 ndn-storage = "^0.2.3"
-ndn-svs = { git = "https://github.com/justincpresley/ndn-python-svs.git" }
-
+ndn-python-svs = { git = "https://github.com/tianyuan129/ndn-python-svs.git" }
+envelope = { git = "https://github.com/tianyuan129/trust-info-base.git" }
 
 [build-system]
 requires = ["poetry-core"]
